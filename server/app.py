@@ -28,9 +28,28 @@ def home():
 @app.route('/campers', methods=['GET', 'POST'])
 def all_campers():
     campers = Camper.query.all()
-    
-    return [c.to_dict(rules=['-signups']) for c in campers], 200
+    if request.method == 'GET':
+        return [c.to_dict(rules=['-signups']) for c in campers], 200
 
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        try:
+            new_camper = Camper(
+                name = data['name'],
+                age = data['age']
+            )
+        except ValueError:
+            return {'errors':["validation errors"]}, 400
+        
+        db.session.add(new_camper)
+        db.session.commit()
+        
+        return make_response(
+        jsonify(new_camper.to_dict()),
+        201
+    )
+        
 @app.route('/campers/<int:id>', methods=['GET', 'PATCH'])
 def campers_by_id(id):
     camper = Camper.query.filter(Camper.id == id).first()
@@ -48,12 +67,55 @@ def campers_by_id(id):
             if 'age' in data:
                 camper.age = data['age']
         except ValueError:
-            return {'error':["validation error"]}, 400
+            return {'errors':["validation errors"]}, 400
             
         db.session.add(camper)
         db.session.commit()
         
         return camper.to_dict(rules=['-signups']), 202
 
+@app.route('/activities', methods=['GET'])
+def get_activities():
+    activity = Activity.query.all()
+    if request.method == 'GET':
+        return [c.to_dict(rules=['-signups']) for c in activity], 200
+    
+@app.route('/activities/<int:id>', methods=['DELETE'])
+def delete_activities(id):
+    activity = Activity.query.filter(Activity.id == id).first()
+    
+    if not activity:
+        return make_response(
+            jsonify({'error': 'Activity not found'}),
+            404
+        )
+        
+    db.session.delete(activity)
+    db.session.commit()
+    
+    return make_response(activity.to_dict(), 204)
+
+@app.route('/signups', methods=['POST'])
+def sign_up():
+    if request.method == 'POST':
+        data = request.get_json()
+        
+        try:
+            new_signup = Signup(
+                time = data['time'],
+                camper_id = data['camper_id'],
+                activity_id = data['activity_id']
+            )
+        except ValueError:
+            return {'errors':["validation errors"]}, 400
+        
+        db.session.add(new_signup)
+        db.session.commit()
+        
+        return make_response(
+        jsonify(new_signup.to_dict()),
+        201
+    )
+    
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
